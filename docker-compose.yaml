@@ -67,12 +67,22 @@ x-airflow-common: &airflow-common
     AIRFLOW__FAB__AUTH_ROLE_PUBLIC: Public
     AIRFLOW__FAB__APP_THEME: "bootstrap-theme.css"
 
-    # Logging local (Airflow 3 exige 'task')
-    AIRFLOW__LOGGING__TASK_LOG_READER: task
-    AIRFLOW__LOGGING__REMOTE_LOGGING: ${AIRFLOW__LOGGING__REMOTE_LOGGING:-False}
-    AIRFLOW__LOGGING__BASE_LOG_FOLDER: ${AIRFLOW__LOGGING__BASE_LOG_FOLDER:-/opt/airflow/logs}
-    AIRFLOW__LOGGING__DAG_PROCESSOR_LOG_TARGET: ${AIRFLOW__LOGGING__DAG_PROCESSOR_LOG_TARGET:-/opt/airflow/logs/dag_processor}
-    AIRFLOW__LOGGING__LOGGING_LEVEL: ${AIRFLOW__LOGGING__LOGGING_LEVEL:-INFO}
+    # Configurações de logging para Airflow 3
+    AIRFLOW__LOGGING__REMOTE_LOGGING: False
+    AIRFLOW__LOGGING__BASE_LOG_FOLDER: /opt/airflow/logs
+    AIRFLOW__LOGGING__DAG_PROCESSOR_LOG_TARGET: /opt/airflow/logs/dag_processor
+    AIRFLOW__LOGGING__LOGGING_LEVEL: INFO
+    AIRFLOW__LOGGING__LOG_FORMAT: "[%%(asctime)s] {%%(filename)s:%%(lineno)d} %%(levelname)s - %%(message)s"
+    AIRFLOW__LOGGING__SIMPLE_LOG_FORMAT: "[%%(asctime)s] %%(levelname)s - %%(message)s"
+    
+    # Task logging específico para Airflow 3
+    AIRFLOW__LOGGING__TASK_LOG_PREFIX_TEMPLATE: ""
+    
+    # Configurações de webserver logging para exibir logs na UI
+    AIRFLOW__WEBSERVER__LOG_FETCH_TIMEOUT_SEC: 5
+    AIRFLOW__WEBSERVER__LOG_FETCH_DELAY_SEC: 2
+    AIRFLOW__WEBSERVER__LOG_AUTO_TAILING_OFFSET: 30
+    AIRFLOW__WEBSERVER__LOG_ANIMATION_SPEED: 1000
 
     # Providers necessários para funcionalidades específicas
     _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-apache-airflow-providers-postgres apache-airflow-providers-fab}

@@ -86,8 +86,8 @@ services:
       <<: *airflow-common-env
       # FORÇA BASE URL SEM PATCHES
       AIRFLOW__WEBSERVER__BASE_URL: https://lakehouse-finance3-airflow3.hjbbqx.easypanel.host
-    # COMANDO SIMPLES - SEM PATCHES
-    command: ["airflow", "api-server", "--port", "8080", "--hostname", "0.0.0.0"]
+    # COMANDO SIMPLES - SEM PATCHES (api-server não aceita --hostname)
+    command: ["airflow", "api-server", "--port", "8080"]
     depends_on:
       airflow3-init:
         condition: service_completed_successfully

@@ -28,5 +28,5 @@ print('[ENTRYPOINT] URL patches aplicados com sucesso!')
 
 echo "[ENTRYPOINT] Iniciando API server na porta 8080..."
 
-# Executar o API server do Airflow (Airflow 3.x usa api-server em vez de webserver)
-exec airflow api-server --port 8080 --hostname 0.0.0.0 "$@"
+# Executar o API server do Airflow (Airflow 3.x - api-server não aceita --hostname)
+exec airflow api-server --port 8080 "$@"

@@ -141,8 +141,22 @@ services:
       SERVER_NAME: lakehouse-finance3-airflow3.hjbbqx.easypanel.host
       # Força conteúdo a ser servido via HTTPS
       AIRFLOW__WEBSERVER__X_FRAME_OPTIONS: SAMEORIGIN
-    # Usar comando padrão do Airflow 3.x - aplicar patches e iniciar api-server
-    command: ["bash", "-c", "export PYTHONPATH=/opt/airflow/config:$$PYTHONPATH && python3 /opt/airflow/config/init_patches.py && exec airflow api-server --port 8080 --hostname 0.0.0.0"]
+    # Comando simplificado para debug - aplicar patches e iniciar api-server
+    command: 
+      - bash
+      - -c
+      - |
+        set -e
+        echo "[DEBUG] Iniciando Airflow API Server..."
+        echo "[DEBUG] PYTHONPATH: $$PYTHONPATH"
+        echo "[DEBUG] BASE_URL: $$AIRFLOW__WEBSERVER__BASE_URL"
+        
+        # Aplicar patches
+        export PYTHONPATH="/opt/airflow/config:$$PYTHONPATH"
+        python3 /opt/airflow/config/init_patches.py
+        
+        echo "[DEBUG] Iniciando API server na porta 8080..."
+        exec airflow api-server --port 8080 --hostname 0.0.0.0
     # Não expor portas no Easypanel - o proxy interno cuida disso
     depends_on:
       airflow3-init:

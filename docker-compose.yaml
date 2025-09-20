@@ -11,16 +11,28 @@ x-airflow-common: &airflow-common
     AIRFLOW__CELERY__BROKER_URL: redis://redis3:6379/0
 
     # Webserver por trás de proxy + domínio público
-    AIRFLOW__WEBSERVER__BASE_URL: https://lakehouse-finance3-airflow3.hjbbqx.easypanel.host
-    AIRFLOW__WEBSERVER__ENABLE_PROXY_FIX: "True"
-    AIRFLOW__WEBSERVER__COOKIE_SECURE: "True"
-    AIRFLOW__WEBSERVER__COOKIE_SAMESITE: "None"
+    AIRFLOW__WEBSERVER__BASE_URL: ${AIRFLOW__WEBSERVER__BASE_URL:-https://lakehouse-finance3-airflow3.hjbbqx.easypanel.host}
+    AIRFLOW__WEBSERVER__ENABLE_PROXY_FIX: ${AIRFLOW__WEBSERVER__ENABLE_PROXY_FIX:-True}
+    AIRFLOW__WEBSERVER__COOKIE_SECURE: ${AIRFLOW__WEBSERVER__COOKIE_SECURE:-True}
+    AIRFLOW__WEBSERVER__COOKIE_SAMESITE: ${AIRFLOW__WEBSERVER__COOKIE_SAMESITE:-None}
+    
+    # Configurações críticas do proxy reverso
+    AIRFLOW__WEBSERVER__PROXY_FIX_X_FOR: ${AIRFLOW__WEBSERVER__PROXY_FIX_X_FOR:-1}
+    AIRFLOW__WEBSERVER__PROXY_FIX_X_PROTO: ${AIRFLOW__WEBSERVER__PROXY_FIX_X_PROTO:-1}
+    AIRFLOW__WEBSERVER__PROXY_FIX_X_HOST: ${AIRFLOW__WEBSERVER__PROXY_FIX_X_HOST:-1}
+    AIRFLOW__WEBSERVER__PROXY_FIX_X_PORT: ${AIRFLOW__WEBSERVER__PROXY_FIX_X_PORT:-1}
+    AIRFLOW__WEBSERVER__PROXY_FIX_X_PREFIX: ${AIRFLOW__WEBSERVER__PROXY_FIX_X_PREFIX:-1}
+    
+    # Restringe hosts aceitos pela UI
+    AIRFLOW__WEBSERVER__ALLOWED_HOSTS: ${AIRFLOW__WEBSERVER__ALLOWED_HOSTS:-lakehouse-finance3-airflow3.hjbbqx.easypanel.host}
 
-    # No Airflow 3 o secret fica em [api]
-    AIRFLOW__API__SECRET_KEY: ${AIRFLOW_SECRET_KEY:-change-this-to-a-long-random-string}
+    # Secrets (API e sessão)
+    AIRFLOW__API__SECRET_KEY: ${AIRFLOW__API__SECRET_KEY:-change-this-to-a-long-random-string}
+    AIRFLOW_SECRET_KEY: ${AIRFLOW_SECRET_KEY:-change-this-to-a-long-random-string}
 
     # Fuso horário
     AIRFLOW__CORE__DEFAULT_TIMEZONE: ${TZ:-America/Sao_Paulo}
+    TZ: ${TZ:-America/Sao_Paulo}
 
     # (opcional mas recomendado) criptografa senhas de Connections
     AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY:-}
@@ -42,7 +54,7 @@ x-airflow-common: &airflow-common
     _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-apache-airflow-providers-fab}
 
     # Evita proxy e força tráfego direto entre containers
-    NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,airflow3-api-server}
+    NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,airflow3-api-server,airflow3-api,postgres3,redis3}
   user: "${AIRFLOW_UID:-50000}:0"
   volumes:
     - ./dags:/opt/airflow/dags
@@ -113,13 +125,36 @@ services:
 
   airflow3-api-server:
     <<: *airflow-common
-    # NÃO definir AIRFLOW__API__BASE_URL aqui
-    command: ["bash","-c","exec airflow api-server"]
+    # Configurações específicas do webserver
+    environment:
+      <<: *airflow-common-env
+      # Força o webserver a usar a URL pública
+      AIRFLOW__WEBSERVER__BASE_URL: ${AIRFLOW__WEBSERVER__BASE_URL:-https://lakehouse-finance3-airflow3.hjbbqx.easypanel.host}
+    command: ["bash","-c","exec airflow webserver"]
+    ports:
+      - "8080:8080"
     depends_on:
       airflow3-init:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/ui/config >/dev/null"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/health >/dev/null"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+    restart: unless-stopped
+
+  # Serviço API separado (apenas para comunicação interna)
+  airflow3-api:
+    <<: *airflow-common
+    environment:
+      <<: *airflow-common-env
+      # API interna não precisa de configurações de proxy
+    command: ["bash","-c","exec airflow api"]
+    depends_on:
+      airflow3-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9090/api/v1/health >/dev/null"]
       interval: 10s
       timeout: 10s
       retries: 30
@@ -128,7 +163,9 @@ services:
   airflow3-scheduler:
     <<: *airflow-common
     environment:
-      AIRFLOW__API__BASE_URL: http://airflow3-api-server:8080
+      <<: *airflow-common-env
+      # Scheduler usa API interna
+      AIRFLOW__API__BASE_URL: http://airflow3-api:9090
     command: ["bash","-c","exec airflow scheduler"]
     depends_on:
       airflow3-init:
@@ -138,7 +175,9 @@ services:
   airflow3-triggerer:
     <<: *airflow-common
     environment:
-      AIRFLOW__API__BASE_URL: http://airflow3-api-server:8080
+      <<: *airflow-common-env
+      # Triggerer usa API interna  
+      AIRFLOW__API__BASE_URL: http://airflow3-api:9090
     command: ["bash","-c","exec airflow triggerer"]
     depends_on:
       airflow3-init:
@@ -148,7 +187,9 @@ services:
   airflow3-dag-processor:
     <<: *airflow-common
     environment:
-      AIRFLOW__API__BASE_URL: http://airflow3-api-server:8080
+      <<: *airflow-common-env
+      # DAG processor usa API interna
+      AIRFLOW__API__BASE_URL: http://airflow3-api:9090
     command: ["bash","-c","exec airflow dag-processor"]
     depends_on:
       airflow3-init:
@@ -158,7 +199,9 @@ services:
   airflow3-worker:
     <<: *airflow-common
     environment:
-      AIRFLOW__API__BASE_URL: http://airflow3-api-server:8080
+      <<: *airflow-common-env
+      # Worker usa API interna
+      AIRFLOW__API__BASE_URL: http://airflow3-api:9090
     command: ["bash","-c","exec airflow celery worker"]
     depends_on:
       airflow3-init:

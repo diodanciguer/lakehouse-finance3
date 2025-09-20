@@ -1,5 +1,3 @@
-version: "3.8"
-
 x-airflow-common: &airflow-common
   image: apache/airflow:3.0.6
   env_file:
@@ -19,7 +17,7 @@ x-airflow-common: &airflow-common
     AIRFLOW__CELERY__BROKER_URL: ${CELERY_BROKER_URL}
     AIRFLOW__CELERY__RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
 
-    # Admin inicial (criado no airflow-init)
+    # Usuário inicial (usado no airflow-init)
     _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_ADMIN_USERNAME}
     _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
     _AIRFLOW_WWW_USER_EMAIL: ${AIRFLOW_ADMIN_EMAIL}
@@ -34,58 +32,56 @@ x-airflow-common: &airflow-common
     - ./plugins:/opt/airflow/plugins
     - ./config:/opt/airflow/config
   depends_on:
-    - postgres-306
-    - redis-306
+    - postgres
+    - redis
   networks:
-    - airflow306_net
+    - airflow3_net
 
 services:
-  postgres-306:
+  postgres:
     image: postgres:16
-    container_name: postgres-306
     environment:
       POSTGRES_USER: airflow
       POSTGRES_PASSWORD: airflow
       POSTGRES_DB: airflow
     volumes:
-      - pgdata306:/var/lib/postgresql/data
+      - pgdata_airflow3:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U airflow"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - airflow306_net
+      - airflow3_net
 
-  redis-306:
+  redis:
     image: redis:7-alpine
-    container_name: redis-306
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - airflow306_net
+      - airflow3_net
 
-  airflow-init-306:
+  # roda UMA vez para migrar o DB e criar usuário admin
+  airflow-init:
     <<: *airflow-common
-    container_name: airflow-init-306
     entrypoint: /bin/bash
     command: -c "airflow db migrate && \
                  airflow users create \
                    --role Admin \
-                   --username $$ _AIRFLOW_WWW_USER_USERNAME \
-                   --password $$ _AIRFLOW_WWW_USER_PASSWORD \
-                   --firstname Diego --lastname Admin --email $$ _AIRFLOW_WWW_USER_EMAIL"
+                   --username $${_AIRFLOW_WWW_USER_USERNAME} \
+                   --password $${_AIRFLOW_WWW_USER_PASSWORD} \
+                   --firstname Diego --lastname Admin \
+                   --email $${_AIRFLOW_WWW_USER_EMAIL}"
     restart: "no"
 
-  airflow-webserver-306:
+  airflow-webserver:
     <<: *airflow-common
-    container_name: airflow-webserver-306
     command: webserver
     ports:
-      - "8081:8080"         # não colide com o 2.x
+      - "8081:8080"   # mude aqui se já tiver algo em 8081
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
       interval: 10s
@@ -93,40 +89,35 @@ services:
       retries: 5
     restart: unless-stopped
 
-  airflow-scheduler-306:
+  airflow-scheduler:
     <<: *airflow-common
-    container_name: airflow-scheduler-306
     command: scheduler
     restart: unless-stopped
 
-  airflow-worker-306:
+  airflow-worker:
     <<: *airflow-common
-    container_name: airflow-worker-306
     command: celery worker
     restart: unless-stopped
 
-  airflow-triggerer-306:
+  airflow-triggerer:
     <<: *airflow-common
-    container_name: airflow-triggerer-306
     command: triggerer
     restart: unless-stopped
 
-  airflow-dag-processor-306:
+  airflow-dag-processor:
     <<: *airflow-common
-    container_name: airflow-dag-processor-306
     command: dag-processor
     restart: unless-stopped
 
-  flower-306:
+  flower:
     <<: *airflow-common
-    container_name: flower-306
     command: celery flower
     ports:
-      - "5556:5555"
+      - "5556:5555"   # mude aqui se já tiver algo em 5556
     restart: unless-stopped
 
 networks:
-  airflow306_net:
+  airflow3_net:
 
 volumes:
-  pgdata306:
+  pgdata_airflow3:

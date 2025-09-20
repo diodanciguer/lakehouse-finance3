@@ -131,8 +131,7 @@ services:
       # Força o webserver a usar a URL pública
       AIRFLOW__WEBSERVER__BASE_URL: ${AIRFLOW__WEBSERVER__BASE_URL:-https://lakehouse-finance3-airflow3.hjbbqx.easypanel.host}
     command: ["bash","-c","exec airflow webserver"]
-    ports:
-      - "8080:8080"
+    # Não expor portas no Easypanel - o proxy interno cuida disso
     depends_on:
       airflow3-init:
         condition: service_completed_successfully

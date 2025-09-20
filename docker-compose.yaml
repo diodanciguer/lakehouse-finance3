@@ -9,22 +9,13 @@ x-airflow-common: &airflow-common
     AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY}
     AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW__WEBSERVER__SECRET_KEY}
     AIRFLOW__CORE__DEFAULT_TIMEZONE: America/Sao_Paulo
-
-    # Database
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: ${SQL_ALCHEMY_CONN}
-
-    # Celery
     AIRFLOW__CELERY__BROKER_URL: ${CELERY_BROKER_URL}
     AIRFLOW__CELERY__RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
-
-    # Usuário inicial (usado no airflow-init)
     _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_ADMIN_USERNAME}
     _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
     _AIRFLOW_WWW_USER_EMAIL: ${AIRFLOW_ADMIN_EMAIL}
-
-    # libs extras (opcional)
     _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-}
-
   user: "${AIRFLOW_UID:-50000}:${AIRFLOW_GID:-0}"
   volumes:
     - ./dags:/opt/airflow/dags
@@ -64,7 +55,7 @@ services:
     networks:
       - airflow3_net
 
-  # roda UMA vez para migrar o DB e criar usuário admin
+  # roda uma única vez p/ migrar o DB e criar o usuário admin
   airflow-init:
     <<: *airflow-common
     entrypoint: /bin/bash
@@ -81,7 +72,7 @@ services:
     <<: *airflow-common
     command: webserver
     ports:
-      - "8081:8080"   # mude aqui se já tiver algo em 8081
+      - "8082:8080"   # <-- web do Airflow 3 em 8082
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
       interval: 10s
@@ -113,7 +104,7 @@ services:
     <<: *airflow-common
     command: celery flower
     ports:
-      - "5556:5555"   # mude aqui se já tiver algo em 5556
+      - "5557:5555"   # <-- flower do Airflow 3 em 5557
     restart: unless-stopped
 
 networks:

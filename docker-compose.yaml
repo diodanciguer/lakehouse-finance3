@@ -1,22 +1,6 @@
-# docker-compose.yml — Airflow 3 stack (sem 'version:')
-
-x-airflow-image: &airflow_image apache/airflow:3.0.6
-x-airflow-env: &airflow_env
-  AIRFLOW_UID: ${AIRFLOW_UID}
-  AIRFLOW_GID: ${AIRFLOW_GID}
-  AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY}
-  AIRFLOW__API__SECRET_KEY: ${AIRFLOW__API__SECRET_KEY}
-  AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW__WEBSERVER__SECRET_KEY}
-  AIRFLOW__CORE__AUTH_MANAGER: ${AIRFLOW__CORE__AUTH_MANAGER}
-  SQL_ALCHEMY_CONN: ${SQL_ALCHEMY_CONN}
-  CELERY_BROKER_URL: ${CELERY_BROKER_URL}
-  CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
-  _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS}
-
 services:
   postgres3:
     image: postgres:16
-    container_name: code-postgres3-1
     environment:
       POSTGRES_USER: airflow
       POSTGRES_PASSWORD: airflow
@@ -25,69 +9,56 @@ services:
       test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
     volumes:
       - ./pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
 
   redis3:
     image: redis:7-alpine
-    container_name: code-redis3-1
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+    restart: unless-stopped
 
   airflow3-init:
-    image: *airflow_image
-    container_name: code-airflow3-init-1
+    image: apache/airflow:3.0.6
     depends_on:
-      postgres3:
-        condition: service_healthy
-      redis3:
-        condition: service_healthy
+      - postgres3
+      - redis3
+    env_file: .env
     environment:
-      <<: *airflow_env
-      # credenciais do admin p/ criação de usuário
-      AIRFLOW_ADMIN_USERNAME: ${AIRFLOW_ADMIN_USERNAME}
-      AIRFLOW_ADMIN_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
-      AIRFLOW_ADMIN_EMAIL: ${AIRFLOW_ADMIN_EMAIL}
-    user: "${AIRFLOW_UID}:${AIRFLOW_GID}"
+      _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-providers-fab
+    user: "0:0"
+    command: >
+      bash -lc "
+      airflow db migrate &&
+      airflow fab create-admin
+        --username \"$AIRFLOW_ADMIN_USERNAME\"
+        --firstname Diego
+        --lastname Admin
+        --email \"$AIRFLOW_ADMIN_EMAIL\"
+        --password \"$AIRFLOW_ADMIN_PASSWORD\"
+        --role Admin || true
+      "
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
       - ./plugins:/opt/airflow/plugins
-    entrypoint: ["/bin/bash","-c"]
-    command: >
-      "
-      set -euo pipefail
-      echo '==> Migrando DB'
-      airflow db migrate
-      echo '==> Criando/atualizando usuário admin'
-      airflow users create
-        --username \"${AIRFLOW_ADMIN_USERNAME}\"
-        --password \"${AIRFLOW_ADMIN_PASSWORD}\"
-        --firstname Diego
-        --lastname Admin
-        --role Admin
-        --email \"${AIRFLOW_ADMIN_EMAIL}\" || true
-      echo '==> Sincronizando permissões'
-      airflow sync-perm || true
-      echo '==> Init concluído'
-      "
+    restart: "no"
 
   airflow3-scheduler:
-    image: *airflow_image
-    container_name: code-airflow3-scheduler-1
+    image: apache/airflow:3.0.6
     depends_on:
-      postgres3:
-        condition: service_healthy
-      redis3:
-        condition: service_healthy
-    environment: *airflow_env
-    user: "${AIRFLOW_UID}:${AIRFLOW_GID}"
-    command: ["airflow","scheduler"]
+      - postgres3
+      - redis3
+    env_file: .env
+    environment:
+      _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-providers-fab
+    command: ["airflow", "scheduler"]
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
@@ -95,16 +66,14 @@ services:
     restart: unless-stopped
 
   airflow3-triggerer:
-    image: *airflow_image
-    container_name: code-airflow3-triggerer-1
+    image: apache/airflow:3.0.6
     depends_on:
-      postgres3:
-        condition: service_healthy
-      redis3:
-        condition: service_healthy
-    environment: *airflow_env
-    user: "${AIRFLOW_UID}:${AIRFLOW_GID}"
-    command: ["airflow","triggerer"]
+      - postgres3
+      - redis3
+    env_file: .env
+    environment:
+      _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-providers-fab
+    command: ["airflow", "triggerer"]
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
@@ -112,14 +81,14 @@ services:
     restart: unless-stopped
 
   airflow3-dag-processor:
-    image: *airflow_image
-    container_name: code-airflow3-dag-processor-1
+    image: apache/airflow:3.0.6
     depends_on:
-      postgres3:
-        condition: service_healthy
-    environment: *airflow_env
-    user: "${AIRFLOW_UID}:${AIRFLOW_GID}"
-    command: ["airflow","dag-processor"]
+      - postgres3
+      - redis3
+    env_file: .env
+    environment:
+      _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-providers-fab
+    command: ["airflow", "dag-processor"]
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
@@ -127,16 +96,14 @@ services:
     restart: unless-stopped
 
   airflow3-worker:
-    image: *airflow_image
-    container_name: code-airflow3-worker-1
+    image: apache/airflow:3.0.6
     depends_on:
-      postgres3:
-        condition: service_healthy
-      redis3:
-        condition: service_healthy
-    environment: *airflow_env
-    user: "${AIRFLOW_UID}:${AIRFLOW_GID}"
-    command: ["airflow","celery","worker"]
+      - postgres3
+      - redis3
+    env_file: .env
+    environment:
+      _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-providers-fab
+    command: ["airflow", "celery", "worker"]
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
@@ -144,27 +111,17 @@ services:
     restart: unless-stopped
 
   airflow3-webserver:
-    # Mantém o nome do serviço que você já tem, mas roda o novo comando 'api-server'
-    image: *airflow_image
-    container_name: code-airflow3-webserver-1
+    image: apache/airflow:3.0.6
     depends_on:
-      postgres3:
-        condition: service_healthy
-      redis3:
-        condition: service_healthy
-      airflow3-scheduler:
-        condition: service_started
-    environment: *airflow_env
-    user: "${AIRFLOW_UID}:${AIRFLOW_GID}"
-    command: ["airflow","api-server","--port","8080"]
-    # mapeia para 8083 no host para NÃO colidir com seu Airflow 2.x
+      - postgres3
+      - redis3
+    env_file: .env
+    environment:
+      _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-providers-fab
+    # Airflow 3: web UI agora é servida pelo `api-server`
+    command: ["airflow", "api-server", "--port", "8080"]
     ports:
-      - "8083:8080"
-    healthcheck:
-      test: ["CMD-SHELL","curl -sf http://localhost:8080/health || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 10
+      - "38083:8080"   # UI do Airflow 3 (HOST:CONTAINER)
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
@@ -172,19 +129,13 @@ services:
     restart: unless-stopped
 
   flower3:
-    image: *airflow_image
-    container_name: code-flower3-1
+    image: apache/airflow:3.0.6
     depends_on:
-      redis3:
-        condition: service_healthy
-    environment: *airflow_env
-    user: "${AIRFLOW_UID}:${AIRFLOW_GID}"
-    command: ["airflow","celery","flower","--port","5555"]
-    # mapeia para 5563 no host para não colidir com outro projeto
+      - redis3
+    env_file: .env
+    environment:
+      _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-providers-fab
+    command: ["airflow", "celery", "flower", "--port", "5555"]
     ports:
-      - "5563:5555"
+      - "35555:5555"   # Flower (HOST:CONTAINER)
     restart: unless-stopped
-
-volumes:
-  # apenas para clareza; estamos usando bind mounts ./dags, ./logs, ./plugins
-  # e um diretório local ./pgdata para o Postgres

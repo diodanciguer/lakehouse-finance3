@@ -50,8 +50,8 @@ x-airflow-common: &airflow-common
     AIRFLOW__LOGGING__DAG_PROCESSOR_LOG_TARGET: ${AIRFLOW__LOGGING__DAG_PROCESSOR_LOG_TARGET:-/opt/airflow/logs/dag_processor}
     AIRFLOW__LOGGING__LOGGING_LEVEL: ${AIRFLOW__LOGGING__LOGGING_LEVEL:-INFO}
 
-    # Instala provider FAB na subida (ok para dev)
-    _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-apache-airflow-providers-fab}
+    # Provider FAB já instalado - removido para logs mais limpos
+    # _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-apache-airflow-providers-fab}
 
     # Evita proxy e força tráfego direto entre containers
     NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,airflow3-api-server,postgres3,redis3}
@@ -147,15 +147,13 @@ services:
       - -c
       - |
         set -e
-        echo "[DEBUG] Iniciando Airflow API Server..."
-        echo "[DEBUG] PYTHONPATH: $$PYTHONPATH"
-        echo "[DEBUG] BASE_URL: $$AIRFLOW__WEBSERVER__BASE_URL"
+        echo "[INFO] Iniciando Airflow 3.0.6 API Server..."
         
-        # Aplicar patches
+        # Aplicar patches (silencioso)
         export PYTHONPATH="/opt/airflow/config:$$PYTHONPATH"
-        python3 /opt/airflow/config/init_patches.py
+        python3 /opt/airflow/config/init_patches.py > /dev/null 2>&1
         
-        echo "[DEBUG] Iniciando API server na porta 8080..."
+        echo "[INFO] Patches aplicados, iniciando servidor..."
         exec airflow api-server --port 8080
     # Não expor portas no Easypanel - o proxy interno cuida disso
     depends_on:

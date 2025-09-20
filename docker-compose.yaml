@@ -1,23 +1,19 @@
-# docker compose v2+ (sem a chave "version")
-# Baseado no guia oficial do Airflow 3.0.6, adaptado para os seus nomes de serviço
-# e para o novo API Server (substitui o webserver).
-# Docs: https://airflow.apache.org/docs/apache-airflow/3.0.6/
+# docker compose v2+ (sem "version")
+# Airflow 3.0.6 com CeleryExecutor e API Server
+# Nomes de serviços com sufixo "3" para não colidir com o Airflow 2.x
 
-x-airflow-common:
-  &airflow-common
+x-airflow-common: &airflow-common
   image: apache/airflow:3.0.6
-  env_file:
-    - .env
-  environment:
-    &airflow-common-env
+  environment: &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres3:5432/airflow
     AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres3:5432/airflow
     AIRFLOW__CELERY__BROKER_URL: redis://redis3:6379/0
+    # Base URL só como referência; UI via API docs/Swagger (não é webserver)
     AIRFLOW__WEBSERVER__BASE_URL: http://localhost:8083
-    # Evita deadlocks de DB em setups pequenos
-    AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL: 5
-    # Mantemos sua escolha de auth manager + provider FAB
+    # Timezone (pega do Easypanel se você definiu TZ=America/Sao_Paulo)
+    AIRFLOW__CORE__DEFAULT_TIMEZONE: ${TZ:-America/Sao_Paulo}
+    # Auth manager + provider FAB (você já testou)
     AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
     _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-providers-fab
   user: "${AIRFLOW_UID:-50000}:0"
@@ -56,13 +52,15 @@ services:
       retries: 20
     restart: unless-stopped
 
+  # roda uma vez para migrar DB e criar admin com as variáveis do Easypanel:
+  # _AIRFLOW_WWW_USER_USERNAME, _AIRFLOW_WWW_USER_PASSWORD, _AIRFLOW_WWW_USER_EMAIL
   airflow3-init:
     <<: *airflow-common
     entrypoint: /bin/bash
     command:
       - -c
       - |
-        echo "Waiting dependencies..."; 
+        echo "Esperando dependências...";
         exec airflow db migrate && \
         airflow users create \
           --role Admin \
@@ -75,7 +73,6 @@ services:
   airflow3-api-server:
     <<: *airflow-common
     command: ["bash","-c","exec airflow api-server"]
-    # Mapeamos para 8083 no host para não colidir com seu Airflow 2.x
     ports:
       - "8083:8080"
     healthcheck:
@@ -108,6 +105,7 @@ services:
   flower3:
     <<: *airflow-common
     command: ["bash","-c","exec airflow celery flower"]
+    # usa 5567 no host para não disputar 5557/5555 do outro projeto
     ports:
-      - "5557:5555"
+      - "5567:5555"
     restart: unless-stopped

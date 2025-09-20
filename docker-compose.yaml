@@ -3,7 +3,7 @@
 # Sufixo "3" para não colidir com seu Airflow 2.x
 
 x-airflow-common: &airflow-common
-  image: apache/airflow:3.0.6
+  image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:3.0.6}
   environment: &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres3:5432/airflow
@@ -12,13 +12,18 @@ x-airflow-common: &airflow-common
 
     # Webserver por trás de proxy + domínio público
     AIRFLOW__WEBSERVER__BASE_URL: https://lakehouse-finance3-airflow3.hjbbqx.easypanel.host
-    AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY:-change-this-to-a-long-random-string}
     AIRFLOW__WEBSERVER__ENABLE_PROXY_FIX: "True"
     AIRFLOW__WEBSERVER__COOKIE_SECURE: "True"
     AIRFLOW__WEBSERVER__COOKIE_SAMESITE: Lax
 
+    # No Airflow 3 o secret fica em [api]
+    AIRFLOW__API__SECRET_KEY: ${AIRFLOW_SECRET_KEY:-change-this-to-a-long-random-string}
+
     # Fuso horário
     AIRFLOW__CORE__DEFAULT_TIMEZONE: ${TZ:-America/Sao_Paulo}
+
+    # (opcional mas recomendado) criptografa senhas de Connections
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY:-}
 
     # Auth manager FAB (UI de login)
     AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
@@ -96,6 +101,9 @@ services:
   airflow3-api-server:
     <<: *airflow-common
     command: ["bash","-c","exec airflow api-server"]
+    depends_on:
+      airflow3-init:
+        condition: service_completed_successfully
     # healthcheck correto para Airflow 3
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8080/api/v1/health | grep -q '\"status\": \"healthy\"'"]
@@ -107,26 +115,41 @@ services:
   airflow3-scheduler:
     <<: *airflow-common
     command: ["bash","-c","exec airflow scheduler"]
+    depends_on:
+      airflow3-init:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   airflow3-triggerer:
     <<: *airflow-common
     command: ["bash","-c","exec airflow triggerer"]
+    depends_on:
+      airflow3-init:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   airflow3-dag-processor:
     <<: *airflow-common
     command: ["bash","-c","exec airflow dag-processor"]
+    depends_on:
+      airflow3-init:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   airflow3-worker:
     <<: *airflow-common
     command: ["bash","-c","exec airflow celery worker"]
+    depends_on:
+      airflow3-init:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   flower3:
     <<: *airflow-common
     command: ["bash","-c","exec airflow celery flower"]
+    depends_on:
+      airflow3-init:
+        condition: service_completed_successfully
     restart: unless-stopped
 
 volumes:

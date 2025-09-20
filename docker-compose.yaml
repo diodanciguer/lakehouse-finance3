@@ -3,31 +3,37 @@ x-airflow-common: &airflow-common
   env_file:
     - .env
   environment: &airflow-env
-    # Configurações principais
+    # Core
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
     AIRFLOW__CORE__LOAD_EXAMPLES: "false"
     AIRFLOW__CORE__DEFAULT_TIMEZONE: America/Sao_Paulo
     AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY}
 
-    # Webserver / segurança
-    AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRLOW__WEBSERVER__SECRET_KEY}
+    # Auth Manager (habilita tela de login e CLI de usuários como no Airflow 2.x)
+    AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
 
-    # Database
+    # Secret key — novo local no Airflow 3
+    AIRFLOW__API__SECRET_KEY: ${AIRFLOW__API__SECRET_KEY}
+    # Retrocompat (evita warning enquanto tudo migra)
+    AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW__WEBSERVER__SECRET_KEY}
+
+    # Database (serviço postgres3 abaixo)
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: ${SQL_ALCHEMY_CONN}
 
-    # Celery
+    # Celery (serviço redis3 abaixo)
     AIRFLOW__CELERY__BROKER_URL: ${CELERY_BROKER_URL}
     AIRFLOW__CELERY__RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
 
-    # Admin inicial
+    # Usuário admin inicial (usado só no airflow3-init)
     _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_ADMIN_USERNAME}
     _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
     _AIRFLOW_WWW_USER_EMAIL: ${AIRFLOW_ADMIN_EMAIL}
 
-    # Dependências extras
-    _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-}
+    # Instala providers/libs extras na subida (inclui FAB provider)
+    _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-apache-airflow-providers-fab}
 
+  # Evita arquivos root em volumes
   user: "${AIRFLOW_UID:-50000}:${AIRFLOW_GID:-0}"
 
   volumes:
@@ -44,6 +50,7 @@ x-airflow-common: &airflow-common
     - airflow3_net
 
 services:
+  # Banco de metadados
   postgres3:
     image: postgres:16
     environment:
@@ -60,6 +67,7 @@ services:
     networks:
       - airflow3_net
 
+  # Broker do Celery
   redis3:
     image: redis:7-alpine
     healthcheck:
@@ -70,6 +78,7 @@ services:
     networks:
       - airflow3_net
 
+  # Rodar UMA VEZ: migra o DB e cria o usuário admin (com FAB habilitado)
   airflow3-init:
     <<: *airflow-common
     command: bash -c "airflow db migrate && \
@@ -81,6 +90,7 @@ services:
                         --email $${_AIRFLOW_WWW_USER_EMAIL}"
     restart: "no"
 
+  # Webserver (porta interna 8080; EasyPanel faz o proxy pelo domínio)
   airflow3-webserver:
     <<: *airflow-common
     command: webserver
@@ -111,6 +121,7 @@ services:
     command: dag-processor
     restart: unless-stopped
 
+  # Flower (publique em outro domínio apontando para a porta interna 5555)
   flower3:
     <<: *airflow-common
     command: celery flower

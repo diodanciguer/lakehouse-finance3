@@ -128,9 +128,13 @@ services:
     # Configurações específicas do webserver
     environment:
       <<: *airflow-common-env
-      # Força o webserver a usar a URL pública
-      AIRFLOW__WEBSERVER__BASE_URL: ${AIRFLOW__WEBSERVER__BASE_URL:-https://lakehouse-finance3-airflow3.hjbbqx.easypanel.host}
-    command: ["bash","-c","exec airflow webserver"]
+      # Força o webserver a usar a URL pública - SEM fallback
+      AIRFLOW__WEBSERVER__BASE_URL: https://lakehouse-finance3-airflow3.hjbbqx.easypanel.host
+      # Força SSL/HTTPS
+      AIRFLOW__WEBSERVER__FORCE_SECURE: "True"
+      # Desabilita redirects internos
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "False"
+    command: ["bash","-c","exec airflow webserver --port 8080 --hostname 0.0.0.0"]
     # Não expor portas no Easypanel - o proxy interno cuida disso
     depends_on:
       airflow3-init:

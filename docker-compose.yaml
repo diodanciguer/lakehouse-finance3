@@ -1,6 +1,6 @@
 # docker compose v2+ (sem "version")
 # Airflow 3.0.6 com CeleryExecutor e API Server
-# Nomes de serviços com sufixo "3" para não colidir com o Airflow 2.x
+# Sufixo "3" para não colidir com seu Airflow 2.x
 
 x-airflow-common: &airflow-common
   image: apache/airflow:3.0.6
@@ -9,12 +9,13 @@ x-airflow-common: &airflow-common
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres3:5432/airflow
     AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres3:5432/airflow
     AIRFLOW__CELERY__BROKER_URL: redis://redis3:6379/0
-    # Base URL só como referência; UI via API docs/Swagger (não é webserver)
-    AIRFLOW__WEBSERVER__BASE_URL: http://localhost:8083
-    # Timezone (pega do Easypanel se você definiu TZ=America/Sao_Paulo)
+    # Base URL apenas referencial; UI é via API/Swagger
+    AIRFLOW__WEBSERVER__BASE_URL: http://localhost:8080
+    # Timezone: pega do Easypanel se você definiu TZ=America/Sao_Paulo
     AIRFLOW__CORE__DEFAULT_TIMEZONE: ${TZ:-America/Sao_Paulo}
-    # Auth manager + provider FAB (você já testou)
+    # Auth manager FAB (conforme você pediu)
     AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+    # Instala provider FAB na subida (ok para dev)
     _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-providers-fab
   user: "${AIRFLOW_UID:-50000}:0"
   volumes:
@@ -73,10 +74,9 @@ services:
   airflow3-api-server:
     <<: *airflow-common
     command: ["bash","-c","exec airflow api-server"]
-    ports:
-      - "8083:8080"
+    # sem mapeamento de porta no host; Easypanel aponta para a porta interna 8080
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health | grep -q '\"status\": \"healthy\"'"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/api/v1/health | grep -q '\"status\": \"healthy\"'"]
       interval: 10s
       timeout: 10s
       retries: 30
@@ -105,7 +105,5 @@ services:
   flower3:
     <<: *airflow-common
     command: ["bash","-c","exec airflow celery flower"]
-    # usa 5567 no host para não disputar 5557/5555 do outro projeto
-    ports:
-      - "5567:5555"
+    # sem porta exposta; se quiser domínio, aponte o Easypanel para o service flower3 e porta interna 5555
     restart: unless-stopped

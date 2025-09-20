@@ -74,8 +74,8 @@ x-airflow-common: &airflow-common
     AIRFLOW__LOGGING__DAG_PROCESSOR_LOG_TARGET: ${AIRFLOW__LOGGING__DAG_PROCESSOR_LOG_TARGET:-/opt/airflow/logs/dag_processor}
     AIRFLOW__LOGGING__LOGGING_LEVEL: ${AIRFLOW__LOGGING__LOGGING_LEVEL:-INFO}
 
-    # Provider FAB já instalado - removido para logs mais limpos
-    # _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-apache-airflow-providers-fab}
+    # Providers necessários para funcionalidades específicas
+    _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-apache-airflow-providers-postgres apache-airflow-providers-fab}
 
     # Evita proxy e força tráfego direto entre containers
     NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,airflow3-api-server,postgres3,redis3}

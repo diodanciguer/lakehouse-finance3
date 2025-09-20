@@ -120,10 +120,28 @@ def init_app_proxy_fix(app):
     print(f"[WEBSERVER CONFIG] ProxyFix e URLFixMiddleware aplicados!")
     return app
 
+# Configurações de sessão persistente
+SESSION_TIMEOUT_MINUTES = 525600  # 1 ano
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+ENABLE_WTF_CSRF = False  # Desabilitar CSRF
+
+# Configurações de autenticação
+AUTH_USER_REGISTRATION = False
+AUTH_USER_REGISTRATION_ROLE = "Public"
+AUTH_ROLE_ADMIN = 'Admin'
+AUTH_ROLE_PUBLIC = 'Public'
+
+# Remember Me configurado para durar 1 ano
+REMEMBER_COOKIE_DURATION = 365 * 24 * 60 * 60  # 1 ano em segundos
+REMEMBER_COOKIE_HTTPONLY = True
+REMEMBER_COOKIE_SECURE = True
+
 print(f"[WEBSERVER CONFIG] Base URL FORÇADA: {base_url}")
 print(f"[WEBSERVER CONFIG] Proxy Fix habilitado: {ENABLE_PROXY_FIX}")
 print(f"[WEBSERVER CONFIG] Cookie domain: {SESSION_COOKIE_DOMAIN}")
 print(f"[WEBSERVER CONFIG] Configuração para Airflow 3.x API Server")
-
-# Configuração adicional para garantir URLs corretas
+print(f"[WEBSERVER CONFIG] Sessão persistente: {SESSION_TIMEOUT_MINUTES} minutos")
+print(f"[WEBSERVER CONFIG] CSRF desabilitado: {not ENABLE_WTF_CSRF}")
 print(f"[WEBSERVER CONFIG] Configurações aplicadas com sucesso!")

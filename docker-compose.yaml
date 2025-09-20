@@ -26,16 +26,25 @@ x-airflow-common: &airflow-common
     # Restringe hosts aceitos pela UI
     AIRFLOW__WEBSERVER__ALLOWED_HOSTS: ${AIRFLOW__WEBSERVER__ALLOWED_HOSTS:-lakehouse-finance3-airflow3.hjbbqx.easypanel.host}
 
-    # Secrets (API e sessão)
-    AIRFLOW__API__SECRET_KEY: ${AIRFLOW__API__SECRET_KEY:-change-this-to-a-long-random-string}
-    AIRFLOW_SECRET_KEY: ${AIRFLOW_SECRET_KEY:-change-this-to-a-long-random-string}
+    # Secrets (API e sessão) - CHAVES FIXAS para persistência
+    AIRFLOW__API__SECRET_KEY: lakehouse-finance3-airflow3-secret-key-2024-fixed
+    AIRFLOW_SECRET_KEY: lakehouse-finance3-airflow3-secret-key-2024-fixed
+    
+    # Configurações de sessão persistente
+    AIRFLOW__WEBSERVER__SESSION_TIMEOUT_MINUTES: 525600  # 1 ano
+    AIRFLOW__WEBSERVER__COOKIE_HTTPONLY: True
+    AIRFLOW__WEBSERVER__COOKIE_SECURE: True
+    AIRFLOW__WEBSERVER__COOKIE_SAMESITE: Lax
+    
+    # Desabilitar CSRF para evitar problemas após deploys
+    AIRFLOW__WEBSERVER__ENABLE_WTF_CSRF: False
 
     # Fuso horário
     AIRFLOW__CORE__DEFAULT_TIMEZONE: ${TZ:-America/Sao_Paulo}
     TZ: ${TZ:-America/Sao_Paulo}
 
-    # (opcional mas recomendado) criptografa senhas de Connections
-    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY:-}
+    # Fernet key FIXA para persistência de dados (senhas, conexões)
+    AIRFLOW__CORE__FERNET_KEY: lakehouse-finance3-fernet-key-2024-fixed-abcd1234567890==
 
     # Auth manager FAB (UI de login)
     AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager

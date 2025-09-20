@@ -14,7 +14,7 @@ x-airflow-common: &airflow-common
     AIRFLOW__WEBSERVER__BASE_URL: https://lakehouse-finance3-airflow3.hjbbqx.easypanel.host
     AIRFLOW__WEBSERVER__ENABLE_PROXY_FIX: "True"
     AIRFLOW__WEBSERVER__COOKIE_SECURE: "True"
-    AIRFLOW__WEBSERVER__COOKIE_SAMESITE: Lax
+    AIRFLOW__WEBSERVER__COOKIE_SAMESITE: None
 
     # No Airflow 3 o secret fica em [api]
     AIRFLOW__API__SECRET_KEY: ${AIRFLOW_SECRET_KEY:-change-this-to-a-long-random-string}
@@ -28,8 +28,24 @@ x-airflow-common: &airflow-common
     # Auth manager FAB (UI de login)
     AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
 
+    # Provider FAB para UI/API baseada em sessão
+    AIRFLOW__API__AUTH_BACKENDS: ${AIRFLOW__API__AUTH_BACKENDS:-airflow.providers.fab.auth_manager.api.auth.backend.session.SessionAuthBackend}
+
+    # SDK do Airflow 3 fala com o api-server interno
+    AIRFLOW__API__BASE_URL: ${AIRFLOW__API__BASE_URL:-http://airflow3-api-server:8080/api/v1}
+
+    # Logging local
+    AIRFLOW__LOGGING__TASK_LOG_READER: ${AIRFLOW__LOGGING__TASK_LOG_READER:-file}
+    AIRFLOW__LOGGING__REMOTE_LOGGING: ${AIRFLOW__LOGGING__REMOTE_LOGGING:-False}
+    AIRFLOW__LOGGING__BASE_LOG_FOLDER: ${AIRFLOW__LOGGING__BASE_LOG_FOLDER:-/opt/airflow/logs}
+    AIRFLOW__LOGGING__DAG_PROCESSOR_LOG_TARGET: ${AIRFLOW__LOGGING__DAG_PROCESSOR_LOG_TARGET:-/opt/airflow/logs/dag_processor}
+    AIRFLOW__LOGGING__LOGGING_LEVEL: ${AIRFLOW__LOGGING__LOGGING_LEVEL:-INFO}
+
     # Instala provider FAB na subida (ok para dev)
-    _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-providers-fab
+    _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-apache-airflow-providers-fab}
+
+    # Evita proxy e força tráfego direto entre containers
+    NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,airflow3-api-server}
   user: "${AIRFLOW_UID:-50000}:0"
   volumes:
     - ./dags:/opt/airflow/dags

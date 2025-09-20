@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  airflow3-api-server:
+    environment:
+      # Força URL pública - não pode ser sobrescrita
+      AIRFLOW__WEBSERVER__BASE_URL: "https://lakehouse-finance3-airflow3.hjbbqx.easypanel.host"
+      AIRFLOW__WEBSERVER__ENABLE_PROXY_FIX: "True"
+      AIRFLOW__WEBSERVER__FORCE_SECURE: "True"
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "False"
+      AIRFLOW__WEBSERVER__PROXY_FIX_X_FOR: "1"
+      AIRFLOW__WEBSERVER__PROXY_FIX_X_PROTO: "1"
+      AIRFLOW__WEBSERVER__PROXY_FIX_X_HOST: "1"
+      AIRFLOW__WEBSERVER__PROXY_FIX_X_PORT: "1"
+      AIRFLOW__WEBSERVER__PROXY_FIX_X_PREFIX: "1"
+      AIRFLOW__WEBSERVER__ALLOWED_HOSTS: "lakehouse-finance3-airflow3.hjbbqx.easypanel.host"

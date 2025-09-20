@@ -3,4 +3,3 @@ logs/
 __pycache__/
 *.pyc
 docker-compose-backup.yaml
-docker-compose.override.yml

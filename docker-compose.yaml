@@ -54,7 +54,7 @@ x-airflow-common: &airflow-common
     _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-apache-airflow-providers-fab}
 
     # Evita proxy e força tráfego direto entre containers
-    NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,airflow3-api-server,airflow3-api,postgres3,redis3}
+    NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,airflow3-api-server,postgres3,redis3}
   user: "${AIRFLOW_UID:-50000}:0"
   volumes:
     - ./dags:/opt/airflow/dags
@@ -146,29 +146,12 @@ services:
       retries: 30
     restart: unless-stopped
 
-  # Serviço API separado (apenas para comunicação interna)
-  airflow3-api:
-    <<: *airflow-common
-    environment:
-      <<: *airflow-common-env
-      # API interna não precisa de configurações de proxy
-    command: ["bash","-c","exec airflow api"]
-    depends_on:
-      airflow3-init:
-        condition: service_completed_successfully
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:9090/api/v1/health >/dev/null"]
-      interval: 10s
-      timeout: 10s
-      retries: 30
-    restart: unless-stopped
-
   airflow3-scheduler:
     <<: *airflow-common
     environment:
       <<: *airflow-common-env
-      # Scheduler usa API interna
-      AIRFLOW__API__BASE_URL: http://airflow3-api:9090
+      # Scheduler usa o webserver para API
+      AIRFLOW__API__BASE_URL: http://airflow3-api-server:8080
     command: ["bash","-c","exec airflow scheduler"]
     depends_on:
       airflow3-init:
@@ -179,8 +162,8 @@ services:
     <<: *airflow-common
     environment:
       <<: *airflow-common-env
-      # Triggerer usa API interna  
-      AIRFLOW__API__BASE_URL: http://airflow3-api:9090
+      # Triggerer usa o webserver para API
+      AIRFLOW__API__BASE_URL: http://airflow3-api-server:8080
     command: ["bash","-c","exec airflow triggerer"]
     depends_on:
       airflow3-init:
@@ -191,8 +174,8 @@ services:
     <<: *airflow-common
     environment:
       <<: *airflow-common-env
-      # DAG processor usa API interna
-      AIRFLOW__API__BASE_URL: http://airflow3-api:9090
+      # DAG processor usa o webserver para API
+      AIRFLOW__API__BASE_URL: http://airflow3-api-server:8080
     command: ["bash","-c","exec airflow dag-processor"]
     depends_on:
       airflow3-init:
@@ -203,8 +186,8 @@ services:
     <<: *airflow-common
     environment:
       <<: *airflow-common-env
-      # Worker usa API interna
-      AIRFLOW__API__BASE_URL: http://airflow3-api:9090
+      # Worker usa o webserver para API
+      AIRFLOW__API__BASE_URL: http://airflow3-api-server:8080
     command: ["bash","-c","exec airflow celery worker"]
     depends_on:
       airflow3-init:

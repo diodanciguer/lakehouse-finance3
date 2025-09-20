@@ -39,10 +39,11 @@ docker compose logs --tail=50 airflow3-api-server
 **⚠️ IMPORTANTE:** Airflow 3.0.6 usa `api-server` em vez de `webserver`!
 
 Você deve ver mensagens como:
-- `[ENTRYPOINT] URL patches aplicados com sucesso!`
-- `[ENTRYPOINT] Iniciando API server na porta 8080...`
+- `[INIT_PATCHES] ========== INICIANDO PATCHES ==========`
+- `[INIT_PATCHES] BASE_URL: https://lakehouse-finance3-airflow3.hjbbqx.easypanel.host`
+- `[INIT_PATCHES] Patches Python aplicados com sucesso!`
+- `[URL_PATCHER] Patches aplicados com sucesso!`
 - `[URL_PATCHER] Patch aplicado ao módulo airflow.www.app`
-- `[URL_PATCHER] Patch de redirect aplicado!`
 - `[URL_PATCHER] Redirect interceptado: http://airflow3-api-server:8080/... -> https://lakehouse-finance3-airflow3.hjbbqx.easypanel.host/...`
 
 **❌ Se você ver isso, é erro:**

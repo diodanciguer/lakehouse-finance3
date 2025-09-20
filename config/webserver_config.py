@@ -120,18 +120,10 @@ def init_app_proxy_fix(app):
     print(f"[WEBSERVER CONFIG] ProxyFix e URLFixMiddleware aplicados!")
     return app
 
-# Aplicar patches de URL ANTES de tudo
-try:
-    import sys
-    import os
-    sys.path.insert(0, '/opt/airflow/config')
-    from url_patcher import apply_patches
-    apply_patches()
-    print(f"[WEBSERVER CONFIG] URL Patcher aplicado com sucesso!")
-except Exception as e:
-    print(f"[WEBSERVER CONFIG] ERRO ao aplicar URL Patcher: {e}")
-
 print(f"[WEBSERVER CONFIG] Base URL FORÇADA: {base_url}")
 print(f"[WEBSERVER CONFIG] Proxy Fix habilitado: {ENABLE_PROXY_FIX}")
 print(f"[WEBSERVER CONFIG] Cookie domain: {SESSION_COOKIE_DOMAIN}")
-print(f"[WEBSERVER CONFIG] Middleware de correção de redirect ativado")
+print(f"[WEBSERVER CONFIG] Configuração para Airflow 3.x API Server")
+
+# Configuração adicional para garantir URLs corretas
+print(f"[WEBSERVER CONFIG] Configurações aplicadas com sucesso!")

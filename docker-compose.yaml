@@ -126,10 +126,10 @@ services:
 
   airflow3-api-server:
     <<: *airflow-common
-    # Configurações específicas do webserver
+    # Configurações específicas do API server
     environment:
       <<: *airflow-common-env
-      # Força o webserver a usar a URL pública - SEM fallback
+      # Força o API server a usar a URL pública - SEM fallback
       AIRFLOW__WEBSERVER__BASE_URL: https://lakehouse-finance3-airflow3.hjbbqx.easypanel.host
       # Força SSL/HTTPS
       AIRFLOW__WEBSERVER__FORCE_SECURE: "True"
@@ -141,7 +141,8 @@ services:
       SERVER_NAME: lakehouse-finance3-airflow3.hjbbqx.easypanel.host
       # Força conteúdo a ser servido via HTTPS
       AIRFLOW__WEBSERVER__X_FRAME_OPTIONS: SAMEORIGIN
-    command: ["bash","/opt/airflow/entrypoint.sh"]
+    # Usar comando padrão do Airflow 3.x - aplicar patches e iniciar api-server
+    command: ["bash", "-c", "export PYTHONPATH=/opt/airflow/config:$$PYTHONPATH && python3 /opt/airflow/config/init_patches.py && exec airflow api-server --port 8080 --hostname 0.0.0.0"]
     # Não expor portas no Easypanel - o proxy interno cuida disso
     depends_on:
       airflow3-init:

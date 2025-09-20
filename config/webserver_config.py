@@ -41,48 +41,70 @@ SERVER_NAME = 'lakehouse-finance3-airflow3.hjbbqx.easypanel.host'
 
 # Força configuração de proxy
 from werkzeug.middleware.proxy_fix import ProxyFix
-from flask import request, redirect, url_for
+from flask import request, redirect, url_for, Response
 import re
+from urllib.parse import urlparse, urlunparse
 
-# Hook para interceptar redirects problemáticos
-def check_redirect_url(endpoint, values):
-    """Intercepta URLs de redirect e corrige se necessário"""
-    if values and 'next' in values:
-        next_url = values['next']
-        # Se a URL contém o hostname interno, substituir pelo público
-        if 'airflow3-api-server:8080' in next_url:
-            values['next'] = next_url.replace(
-                'http://airflow3-api-server:8080',
-                'https://lakehouse-finance3-airflow3.hjbbqx.easypanel.host'
-            )
-            print(f"[WEBSERVER CONFIG] URL de redirect corrigida: {values['next']}")
-    return endpoint, values
+# Função para corrigir URLs problemáticas
+def fix_internal_url(url):
+    """Corrige URLs internas para URLs públicas"""
+    if not url:
+        return url
+    
+    # Lista de padrões problemáticos para corrigir
+    internal_patterns = [
+        'http://airflow3-api-server:8080',
+        'https://airflow3-api-server:8080',
+        'airflow3-api-server:8080'
+    ]
+    
+    fixed_url = url
+    for pattern in internal_patterns:
+        if pattern in fixed_url:
+            fixed_url = fixed_url.replace(pattern, 'https://lakehouse-finance3-airflow3.hjbbqx.easypanel.host')
+            print(f"[URL FIX] Corrigido: {url} -> {fixed_url}")
+    
+    return fixed_url
 
-# Middleware personalizado para interceptar redirects
-class RedirectFixMiddleware:
+# Middleware mais robusto
+class URLFixMiddleware:
     def __init__(self, app):
         self.app = app
         
     def __call__(self, environ, start_response):
+        # Corrigir HOST e SERVER_NAME no environ se necessário
+        if environ.get('HTTP_HOST') == 'airflow3-api-server:8080':
+            environ['HTTP_HOST'] = 'lakehouse-finance3-airflow3.hjbbqx.easypanel.host'
+            print(f"[ENVIRON FIX] HTTP_HOST corrigido para: {environ['HTTP_HOST']}")
+            
+        if environ.get('SERVER_NAME') == 'airflow3-api-server':
+            environ['SERVER_NAME'] = 'lakehouse-finance3-airflow3.hjbbqx.easypanel.host'
+            environ['SERVER_PORT'] = '443'
+            print(f"[ENVIRON FIX] SERVER_NAME corrigido para: {environ['SERVER_NAME']}")
+        
         def new_start_response(status, response_headers):
-            # Interceptar redirects 302/301
-            if status.startswith('302') or status.startswith('301'):
+            # Interceptar e corrigir redirects
+            if status.startswith('30'):
                 for i, (header, value) in enumerate(response_headers):
                     if header.lower() == 'location':
-                        # Corrigir URL de redirect se contém hostname interno
-                        if 'airflow3-api-server:8080' in value:
-                            new_value = value.replace(
-                                'http://airflow3-api-server:8080',
-                                'https://lakehouse-finance3-airflow3.hjbbqx.easypanel.host'
-                            )
-                            response_headers[i] = (header, new_value)
-                            print(f"[REDIRECT FIX] Corrigido: {value} -> {new_value}")
+                        fixed_value = fix_internal_url(value)
+                        if fixed_value != value:
+                            response_headers[i] = (header, fixed_value)
             return start_response(status, response_headers)
+        
         return self.app(environ, new_start_response)
 
 def init_app_proxy_fix(app):
-    """Aplica o ProxyFix e middleware de correção de redirect"""
-    # Aplicar ProxyFix primeiro
+    """Aplica ProxyFix e configurações para proxy reverso"""
+    
+    # Configurar Flask app para usar HTTPS e host correto
+    app.config.update({
+        'PREFERRED_URL_SCHEME': 'https',
+        'SERVER_NAME': 'lakehouse-finance3-airflow3.hjbbqx.easypanel.host',
+        'APPLICATION_ROOT': '/',
+    })
+    
+    # Aplicar ProxyFix para cabeçalhos de proxy
     app.wsgi_app = ProxyFix(
         app.wsgi_app,
         x_for=1,
@@ -91,9 +113,23 @@ def init_app_proxy_fix(app):
         x_port=1,
         x_prefix=1
     )
-    # Aplicar middleware de correção de redirect
-    app.wsgi_app = RedirectFixMiddleware(app.wsgi_app)
+    
+    # Aplicar middleware de correção de URL como segunda camada
+    app.wsgi_app = URLFixMiddleware(app.wsgi_app)
+    
+    print(f"[WEBSERVER CONFIG] ProxyFix e URLFixMiddleware aplicados!")
     return app
+
+# Aplicar patches de URL ANTES de tudo
+try:
+    import sys
+    import os
+    sys.path.insert(0, '/opt/airflow/config')
+    from url_patcher import apply_patches
+    apply_patches()
+    print(f"[WEBSERVER CONFIG] URL Patcher aplicado com sucesso!")
+except Exception as e:
+    print(f"[WEBSERVER CONFIG] ERRO ao aplicar URL Patcher: {e}")
 
 print(f"[WEBSERVER CONFIG] Base URL FORÇADA: {base_url}")
 print(f"[WEBSERVER CONFIG] Proxy Fix habilitado: {ENABLE_PROXY_FIX}")

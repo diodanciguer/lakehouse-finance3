@@ -56,11 +56,12 @@ x-airflow-common: &airflow-common
     # Evita proxy e força tráfego direto entre containers
     NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,airflow3-api-server,postgres3,redis3}
   user: "${AIRFLOW_UID:-50000}:0"
-  volumes:
-    - ./dags:/opt/airflow/dags
-    - ./logs:/opt/airflow/logs
-    - ./plugins:/opt/airflow/plugins
-    - ./config:/opt/airflow/config
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - ./config:/opt/airflow/config
+      - ./entrypoint.sh:/opt/airflow/entrypoint.sh
   depends_on:
     postgres3:
       condition: service_healthy
@@ -134,7 +135,13 @@ services:
       AIRFLOW__WEBSERVER__FORCE_SECURE: "True"
       # Desabilita redirects internos
       AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "False"
-    command: ["bash","-c","exec airflow webserver --port 8080 --hostname 0.0.0.0"]
+      # Força host e esquema corretos
+      FLASK_ENV: production
+      PREFERRED_URL_SCHEME: https
+      SERVER_NAME: lakehouse-finance3-airflow3.hjbbqx.easypanel.host
+      # Força conteúdo a ser servido via HTTPS
+      AIRFLOW__WEBSERVER__X_FRAME_OPTIONS: SAMEORIGIN
+    command: ["bash","/opt/airflow/entrypoint.sh"]
     # Não expor portas no Easypanel - o proxy interno cuida disso
     depends_on:
       airflow3-init:

@@ -24,7 +24,7 @@ dag = DAG(
     'test_logs_simple',
     default_args=default_args,
     description='Teste simples de logs no Airflow 3',
-    schedule_interval=None,
+    schedule=None,  # Mudou de schedule_interval para schedule no Airflow 3
     catchup=False,
     tags=['teste', 'logs', 'simples'],
 )

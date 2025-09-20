@@ -3,33 +3,50 @@ x-airflow-common: &airflow-common
   env_file:
     - .env
   environment: &airflow-env
+    # Core
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
     AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY}
-    AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW__WEBSERVER__SECRET_KEY}
     AIRFLOW__CORE__DEFAULT_TIMEZONE: America/Sao_Paulo
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY}
+
+    # Webserver / segurança
+    AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW__WEBSERVER__SECRET_KEY}
+
+    # Database (serviço postgres3 abaixo)
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: ${SQL_ALCHEMY_CONN}
+
+    # Celery (serviço redis3 abaixo)
     AIRFLOW__CELERY__BROKER_URL: ${CELERY_BROKER_URL}
     AIRFLOW__CELERY__RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+
+    # Usuário admin inicial (usado só no airflow-init)
     _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_ADMIN_USERNAME}
     _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
     _AIRFLOW_WWW_USER_EMAIL: ${AIRFLOW_ADMIN_EMAIL}
+
+    # libs extras (opcional)
     _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-}
+
+  # Evita arquivos root em volumes
   user: "${AIRFLOW_UID:-50000}:${AIRFLOW_GID:-0}"
+
   volumes:
     - ./dags:/opt/airflow/dags
     - ./logs:/opt/airflow/logs
     - ./plugins:/opt/airflow/plugins
     - ./config:/opt/airflow/config
+
   depends_on:
-    - postgres
-    - redis
+    - postgres3
+    - redis3
+
   networks:
     - airflow3_net
 
 services:
-  postgres:
+  # Banco de metadados
+  postgres3:
     image: postgres:16
     environment:
       POSTGRES_USER: airflow
@@ -45,7 +62,8 @@ services:
     networks:
       - airflow3_net
 
-  redis:
+  # Broker do Celery
+  redis3:
     image: redis:7-alpine
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -55,8 +73,8 @@ services:
     networks:
       - airflow3_net
 
-  # roda uma única vez p/ migrar o DB e criar o usuário admin
-  airflow-init:
+  # Rodar UMA VEZ: migra o DB e cria o usuário admin
+  airflow3-init:
     <<: *airflow-common
     entrypoint: /bin/bash
     command: -c "airflow db migrate && \
@@ -68,43 +86,42 @@ services:
                    --email $${_AIRFLOW_WWW_USER_EMAIL}"
     restart: "no"
 
-  airflow-webserver:
+  # Webserver (a porta externa será feita pelo domínio do EasyPanel; interna é 8080)
+  airflow3-webserver:
     <<: *airflow-common
     command: webserver
-    ports:
-      - "8082:8080"   # <-- web do Airflow 3 em 8082
     healthcheck:
+      # /health é o endpoint oficial de saúde do webserver
       test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
       interval: 10s
       timeout: 10s
       retries: 5
     restart: unless-stopped
 
-  airflow-scheduler:
+  airflow3-scheduler:
     <<: *airflow-common
     command: scheduler
     restart: unless-stopped
 
-  airflow-worker:
+  airflow3-worker:
     <<: *airflow-common
     command: celery worker
     restart: unless-stopped
 
-  airflow-triggerer:
+  airflow3-triggerer:
     <<: *airflow-common
     command: triggerer
     restart: unless-stopped
 
-  airflow-dag-processor:
+  airflow3-dag-processor:
     <<: *airflow-common
     command: dag-processor
     restart: unless-stopped
 
-  flower:
+  # Flower (monitor Celery). Publicar via segundo domínio apontando para a porta interna 5555.
+  flower3:
     <<: *airflow-common
     command: celery flower
-    ports:
-      - "5557:5555"   # <-- flower do Airflow 3 em 5557
     restart: unless-stopped
 
 networks:

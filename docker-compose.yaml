@@ -1,3 +1,37 @@
+# docker compose v2+ (sem a chave "version")
+# Baseado no guia oficial do Airflow 3.0.6, adaptado para os seus nomes de serviço
+# e para o novo API Server (substitui o webserver).
+# Docs: https://airflow.apache.org/docs/apache-airflow/3.0.6/
+
+x-airflow-common:
+  &airflow-common
+  image: apache/airflow:3.0.6
+  env_file:
+    - .env
+  environment:
+    &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres3:5432/airflow
+    AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres3:5432/airflow
+    AIRFLOW__CELERY__BROKER_URL: redis://redis3:6379/0
+    AIRFLOW__WEBSERVER__BASE_URL: http://localhost:8083
+    # Evita deadlocks de DB em setups pequenos
+    AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL: 5
+    # Mantemos sua escolha de auth manager + provider FAB
+    AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+    _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-providers-fab
+  user: "${AIRFLOW_UID:-50000}:0"
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./logs:/opt/airflow/logs
+    - ./plugins:/opt/airflow/plugins
+    - ./config:/opt/airflow/config
+  depends_on:
+    postgres3:
+      condition: service_healthy
+    redis3:
+      condition: service_healthy
+
 services:
   postgres3:
     image: postgres:16
@@ -7,11 +41,9 @@ services:
       POSTGRES_DB: airflow
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 10
-    volumes:
-      - ./pgdata:/var/lib/postgresql/data
+      retries: 20
     restart: unless-stopped
 
   redis3:
@@ -19,123 +51,63 @@ services:
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
     restart: unless-stopped
 
   airflow3-init:
-    image: apache/airflow:3.0.6
-    depends_on:
-      - postgres3
-      - redis3
-    env_file: .env
-    environment:
-      _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-providers-fab
-    user: "0:0"
-    command: >
-      bash -lc "
-      airflow db migrate &&
-      airflow fab create-admin
-        --username \"$AIRFLOW_ADMIN_USERNAME\"
-        --firstname Diego
-        --lastname Admin
-        --email \"$AIRFLOW_ADMIN_EMAIL\"
-        --password \"$AIRFLOW_ADMIN_PASSWORD\"
-        --role Admin || true
-      "
-    volumes:
-      - ./dags:/opt/airflow/dags
-      - ./logs:/opt/airflow/logs
-      - ./plugins:/opt/airflow/plugins
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        echo "Waiting dependencies..."; 
+        exec airflow db migrate && \
+        airflow users create \
+          --role Admin \
+          --username "$_AIRFLOW_WWW_USER_USERNAME" \
+          --password "$_AIRFLOW_WWW_USER_PASSWORD" \
+          --email "$_AIRFLOW_WWW_USER_EMAIL" \
+          --firstname Admin --lastname User || true
     restart: "no"
 
+  airflow3-api-server:
+    <<: *airflow-common
+    command: ["bash","-c","exec airflow api-server"]
+    # Mapeamos para 8083 no host para não colidir com seu Airflow 2.x
+    ports:
+      - "8083:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health | grep -q '\"status\": \"healthy\"'"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+    restart: unless-stopped
+
   airflow3-scheduler:
-    image: apache/airflow:3.0.6
-    depends_on:
-      - postgres3
-      - redis3
-    env_file: .env
-    environment:
-      _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-providers-fab
-    command: ["airflow", "scheduler"]
-    volumes:
-      - ./dags:/opt/airflow/dags
-      - ./logs:/opt/airflow/logs
-      - ./plugins:/opt/airflow/plugins
+    <<: *airflow-common
+    command: ["bash","-c","exec airflow scheduler"]
     restart: unless-stopped
 
   airflow3-triggerer:
-    image: apache/airflow:3.0.6
-    depends_on:
-      - postgres3
-      - redis3
-    env_file: .env
-    environment:
-      _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-providers-fab
-    command: ["airflow", "triggerer"]
-    volumes:
-      - ./dags:/opt/airflow/dags
-      - ./logs:/opt/airflow/logs
-      - ./plugins:/opt/airflow/plugins
+    <<: *airflow-common
+    command: ["bash","-c","exec airflow triggerer"]
     restart: unless-stopped
 
   airflow3-dag-processor:
-    image: apache/airflow:3.0.6
-    depends_on:
-      - postgres3
-      - redis3
-    env_file: .env
-    environment:
-      _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-providers-fab
-    command: ["airflow", "dag-processor"]
-    volumes:
-      - ./dags:/opt/airflow/dags
-      - ./logs:/opt/airflow/logs
-      - ./plugins:/opt/airflow/plugins
+    <<: *airflow-common
+    command: ["bash","-c","exec airflow dag-processor"]
     restart: unless-stopped
 
   airflow3-worker:
-    image: apache/airflow:3.0.6
-    depends_on:
-      - postgres3
-      - redis3
-    env_file: .env
-    environment:
-      _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-providers-fab
-    command: ["airflow", "celery", "worker"]
-    volumes:
-      - ./dags:/opt/airflow/dags
-      - ./logs:/opt/airflow/logs
-      - ./plugins:/opt/airflow/plugins
-    restart: unless-stopped
-
-  airflow3-webserver:
-    image: apache/airflow:3.0.6
-    depends_on:
-      - postgres3
-      - redis3
-    env_file: .env
-    environment:
-      _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-providers-fab
-    # Airflow 3: web UI agora é servida pelo `api-server`
-    command: ["airflow", "api-server", "--port", "8080"]
-    ports:
-      - "38083:8080"   # UI do Airflow 3 (HOST:CONTAINER)
-    volumes:
-      - ./dags:/opt/airflow/dags
-      - ./logs:/opt/airflow/logs
-      - ./plugins:/opt/airflow/plugins
+    <<: *airflow-common
+    command: ["bash","-c","exec airflow celery worker"]
     restart: unless-stopped
 
   flower3:
-    image: apache/airflow:3.0.6
-    depends_on:
-      - redis3
-    env_file: .env
-    environment:
-      _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-providers-fab
-    command: ["airflow", "celery", "flower", "--port", "5555"]
+    <<: *airflow-common
+    command: ["bash","-c","exec airflow celery flower"]
     ports:
-      - "35555:5555"   # Flower (HOST:CONTAINER)
+      - "5557:5555"
     restart: unless-stopped

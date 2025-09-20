@@ -1,0 +1,132 @@
+version: "3.8"
+
+x-airflow-common: &airflow-common
+  image: apache/airflow:3.0.6
+  env_file:
+    - .env
+  environment: &airflow-env
+    AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY}
+    AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW__WEBSERVER__SECRET_KEY}
+    AIRFLOW__CORE__DEFAULT_TIMEZONE: America/Sao_Paulo
+
+    # Database
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: ${SQL_ALCHEMY_CONN}
+
+    # Celery
+    AIRFLOW__CELERY__BROKER_URL: ${CELERY_BROKER_URL}
+    AIRFLOW__CELERY__RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+
+    # Admin inicial (criado no airflow-init)
+    _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_ADMIN_USERNAME}
+    _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
+    _AIRFLOW_WWW_USER_EMAIL: ${AIRFLOW_ADMIN_EMAIL}
+
+    # libs extras (opcional)
+    _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-}
+
+  user: "${AIRFLOW_UID:-50000}:${AIRFLOW_GID:-0}"
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./logs:/opt/airflow/logs
+    - ./plugins:/opt/airflow/plugins
+    - ./config:/opt/airflow/config
+  depends_on:
+    - postgres-306
+    - redis-306
+  networks:
+    - airflow306_net
+
+services:
+  postgres-306:
+    image: postgres:16
+    container_name: postgres-306
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - pgdata306:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - airflow306_net
+
+  redis-306:
+    image: redis:7-alpine
+    container_name: redis-306
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - airflow306_net
+
+  airflow-init-306:
+    <<: *airflow-common
+    container_name: airflow-init-306
+    entrypoint: /bin/bash
+    command: -c "airflow db migrate && \
+                 airflow users create \
+                   --role Admin \
+                   --username $$ _AIRFLOW_WWW_USER_USERNAME \
+                   --password $$ _AIRFLOW_WWW_USER_PASSWORD \
+                   --firstname Diego --lastname Admin --email $$ _AIRFLOW_WWW_USER_EMAIL"
+    restart: "no"
+
+  airflow-webserver-306:
+    <<: *airflow-common
+    container_name: airflow-webserver-306
+    command: webserver
+    ports:
+      - "8081:8080"         # não colide com o 2.x
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  airflow-scheduler-306:
+    <<: *airflow-common
+    container_name: airflow-scheduler-306
+    command: scheduler
+    restart: unless-stopped
+
+  airflow-worker-306:
+    <<: *airflow-common
+    container_name: airflow-worker-306
+    command: celery worker
+    restart: unless-stopped
+
+  airflow-triggerer-306:
+    <<: *airflow-common
+    container_name: airflow-triggerer-306
+    command: triggerer
+    restart: unless-stopped
+
+  airflow-dag-processor-306:
+    <<: *airflow-common
+    container_name: airflow-dag-processor-306
+    command: dag-processor
+    restart: unless-stopped
+
+  flower-306:
+    <<: *airflow-common
+    container_name: flower-306
+    command: celery flower
+    ports:
+      - "5556:5555"
+    restart: unless-stopped
+
+networks:
+  airflow306_net:
+
+volumes:
+  pgdata306:

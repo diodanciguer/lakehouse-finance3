@@ -106,7 +106,7 @@ services:
         condition: service_completed_successfully
     # healthcheck: valida o webserver HTTP (endpoint público de login)
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/api/v2/health | grep -q '\"status\": \"healthy\"'"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/health | grep -q '\"status\": \"healthy\"'"]
       interval: 10s
       timeout: 10s
       retries: 30

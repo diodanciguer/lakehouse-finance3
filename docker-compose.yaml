@@ -13,8 +13,6 @@ x-airflow-common: &airflow-common
     # Webserver por trás de proxy + domínio público
     AIRFLOW__WEBSERVER__BASE_URL: ${AIRFLOW__WEBSERVER__BASE_URL:-https://lakehouse-finance3-airflow3.hjbbqx.easypanel.host}
     AIRFLOW__WEBSERVER__ENABLE_PROXY_FIX: ${AIRFLOW__WEBSERVER__ENABLE_PROXY_FIX:-True}
-    AIRFLOW__WEBSERVER__COOKIE_SECURE: ${AIRFLOW__WEBSERVER__COOKIE_SECURE:-True}
-    AIRFLOW__WEBSERVER__COOKIE_SAMESITE: ${AIRFLOW__WEBSERVER__COOKIE_SAMESITE:-None}
     
     # Configurações críticas do proxy reverso
     AIRFLOW__WEBSERVER__PROXY_FIX_X_FOR: ${AIRFLOW__WEBSERVER__PROXY_FIX_X_FOR:-1}

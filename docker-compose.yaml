@@ -11,8 +11,11 @@ x-airflow-common: &airflow-common
     AIRFLOW__CELERY__BROKER_URL: redis://redis3:6379/0
 
     # Webserver por trás de proxy + domínio público
-    AIRFLOW__WEBSERVER__BASE_URL: ${AIRFLOW__WEBSERVER__BASE_URL:-https://lakehouse-finance3-airflow3.hjbbqx.easypanel.host}
-    AIRFLOW__WEBSERVER__ENABLE_PROXY_FIX: ${AIRFLOW__WEBSERVER__ENABLE_PROXY_FIX:-True}
+    AIRFLOW__WEBSERVER__BASE_URL: https://lakehouse-finance3-airflow3.hjbbqx.easypanel.host
+    AIRFLOW__WEBSERVER__ENABLE_PROXY_FIX: True
+    AIRFLOW__WEBSERVER__USE_FORWARDED_FOR: True
+    AIRFLOW__WEBSERVER__WEB_SERVER_SSL_CERT: ""
+    AIRFLOW__WEBSERVER__WEB_SERVER_SSL_KEY: ""
     
     # Configurações críticas do proxy reverso
     AIRFLOW__WEBSERVER__PROXY_FIX_X_FOR: ${AIRFLOW__WEBSERVER__PROXY_FIX_X_FOR:-1}
@@ -34,14 +37,15 @@ x-airflow-common: &airflow-common
     AIRFLOW__API_FASTAPI__JWT_AUDIENCE: urn:airflow.apache.org:task
     AIRFLOW__API_FASTAPI__JWT_ISSUER: airflow.apache.org
     
-    # Configurações de sessão persistente
+    # Configurações de sessão persistente (Airflow 3 compatível)
     AIRFLOW__WEBSERVER__SESSION_TIMEOUT_MINUTES: 525600  # 1 ano
     AIRFLOW__WEBSERVER__COOKIE_HTTPONLY: True
-    AIRFLOW__WEBSERVER__COOKIE_SECURE: True
+    AIRFLOW__WEBSERVER__COOKIE_SECURE: False  # Mudado para False - conflito com proxy
     AIRFLOW__WEBSERVER__COOKIE_SAMESITE: Lax
     
-    # Desabilitar CSRF para evitar problemas após deploys
+    # Configurações de autenticação para Airflow 3
     AIRFLOW__WEBSERVER__ENABLE_WTF_CSRF: False
+    AIRFLOW__WEBSERVER__SECRET_KEY: lakehouse-finance3-webserver-secret-key-2024-fixed
 
     # Fuso horário
     AIRFLOW__CORE__DEFAULT_TIMEZONE: ${TZ:-America/Sao_Paulo}
@@ -54,7 +58,15 @@ x-airflow-common: &airflow-common
     AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
 
     # Provider FAB para UI/API baseada em sessão
-    AIRFLOW__API__AUTH_BACKENDS: ${AIRFLOW__API__AUTH_BACKENDS:-airflow.providers.fab.auth_manager.api.auth.backend.session.SessionAuthBackend}
+    AIRFLOW__API__AUTH_BACKENDS: airflow.providers.fab.auth_manager.api.auth.backend.session.SessionAuthBackend
+    
+    # Configurações FAB específicas para Airflow 3
+    AIRFLOW__FAB__BASE_TEMPLATE: airflow/main.html
+    AIRFLOW__FAB__AUTH_TYPE: AUTH_DB
+    AIRFLOW__FAB__AUTH_ROLE_ADMIN: Admin
+    AIRFLOW__FAB__AUTH_ROLE_PUBLIC: Public
+    AIRFLOW__FAB__APP_THEME: "bootstrap-theme.css"
+    AIRFLOW__FAB__ROLES_MAPPING: {}
 
     # Logging local (Airflow 3 exige 'task')
     AIRFLOW__LOGGING__TASK_LOG_READER: task

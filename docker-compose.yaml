@@ -56,12 +56,12 @@ x-airflow-common: &airflow-common
     # Evita proxy e força tráfego direto entre containers
     NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,airflow3-api-server,postgres3,redis3}
   user: "${AIRFLOW_UID:-50000}:0"
-    volumes:
-      - ./dags:/opt/airflow/dags
-      - ./logs:/opt/airflow/logs
-      - ./plugins:/opt/airflow/plugins
-      - ./config:/opt/airflow/config
-      - ./entrypoint.sh:/opt/airflow/entrypoint.sh
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./logs:/opt/airflow/logs
+    - ./plugins:/opt/airflow/plugins
+    - ./config:/opt/airflow/config
+    - ./entrypoint.sh:/opt/airflow/entrypoint.sh
   depends_on:
     postgres3:
       condition: service_healthy

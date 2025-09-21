@@ -3,9 +3,13 @@
 # Sufixo "3" para não colidir com seu Airflow 2.x
 
 x-airflow-common: &airflow-common
-  image: apache/airflow:2.10.3-python3.12
+  image: apache/airflow:3.0.6
   environment: &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+    # Configurações específicas do Airflow 3 (documentação oficial)
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow3-api-server:8080
+    AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION: true
+    AIRFLOW__CORE__INTERNAL_API_SECRET_KEY: lakehouse-finance3-internal-api-key-2024
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres3:5432/airflow
     AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres3:5432/airflow
     AIRFLOW__CELERY__BROKER_URL: redis://redis3:6379/0

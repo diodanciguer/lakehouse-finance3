@@ -36,6 +36,11 @@ x-airflow-common: &airflow-common
     AIRFLOW__API_FASTAPI__JWT_ALGORITHM: HS512
     AIRFLOW__API_FASTAPI__JWT_AUDIENCE: urn:airflow.apache.org:task
     AIRFLOW__API_FASTAPI__JWT_ISSUER: airflow.apache.org
+
+    # Configurações adicionais do Execution API para resolver JWT auth
+    AIRFLOW__TASK_EXECUTION__ENDPOINT_URL: http://airflow3-api-server:8080/execution
+    AIRFLOW__TASK_EXECUTION__AUTH_TYPE: jwt
+    AIRFLOW__API_FASTAPI__CSRF_PROTECT: false
     
     # Configurações de sessão persistente (Airflow 3 compatível)
     AIRFLOW__WEBSERVER__SESSION_TIMEOUT_MINUTES: 525600  # 1 ano
@@ -194,7 +199,7 @@ services:
       airflow3-init:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/health >/dev/null"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/ >/dev/null"]
       interval: 10s
       timeout: 10s
       retries: 30

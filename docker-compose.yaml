@@ -9,6 +9,8 @@ x-airflow-common: &airflow-common
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres3:5432/airflow
     AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres3:5432/airflow
     AIRFLOW__CELERY__BROKER_URL: redis://redis3:6379/0
+      # Celery result backend removido - worker não acessa DB
+      # AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres3:5432/airflow # REMOVIDO
 
     # Webserver por trás de proxy + domínio público
     AIRFLOW__WEBSERVER__BASE_URL: https://lakehouse-finance3-airflow3.hjbbqx.easypanel.host
@@ -39,6 +41,10 @@ x-airflow-common: &airflow-common
 
     # Configurações adicionais do Execution API para resolver JWT auth
     AIRFLOW__TASK_EXECUTION__ENDPOINT_URL: http://airflow3-api-server:8080/execution
+      # Desabilita completamente acesso a DB no worker
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: ""
+      AIRFLOW__DATABASE__CHECK_MIGRATIONS: "false"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
     AIRFLOW__API_FASTAPI__CSRF_PROTECT: false
     
     # Configurações de sessão persistente (Airflow 3 compatível)
@@ -246,8 +252,14 @@ services:
       # Worker para Airflow 3 - SEM acesso direto ao DB
       AIRFLOW__CORE__EXECUTOR: CeleryExecutor
       AIRFLOW__CELERY__BROKER_URL: redis://redis3:6379/0
+      # Celery result backend removido - worker não acessa DB
+      # AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres3:5432/airflow # REMOVIDO
       # Worker usa APENAS Task Execution API
       AIRFLOW__TASK_EXECUTION__ENDPOINT_URL: http://airflow3-api-server:8080/execution
+      # Desabilita completamente acesso a DB no worker
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: ""
+      AIRFLOW__DATABASE__CHECK_MIGRATIONS: "false"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
       AIRFLOW__API__BASE_URL: http://airflow3-api-server:8080
       # Configurações básicas
       AIRFLOW__CORE__DEFAULT_TIMEZONE: ${TZ:-America/Sao_Paulo}

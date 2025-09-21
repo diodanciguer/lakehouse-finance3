@@ -42,9 +42,23 @@ x-airflow-common: &airflow-common
     AIRFLOW__WEBSERVER__COOKIE_HTTPONLY: True
     AIRFLOW__WEBSERVER__COOKIE_SECURE: False  # Mudado para False - conflito com proxy
     AIRFLOW__WEBSERVER__COOKIE_SAMESITE: Lax
+    # Configurações para evitar recarregamento e manter login
+    AIRFLOW__WEBSERVER__SESSION_LIFETIME_MINUTES: 525600  # 1 ano
+    AIRFLOW__WEBSERVER__COOKIE_MAX_AGE: 31536000  # 1 ano em segundos
+    AIRFLOW__WEBSERVER__PERMANENT_SESSION_LIFETIME: 31536000
+    AIRFLOW__WEBSERVER__REFRESH_CSRF_TIMEOUT: False
+    AIRFLOW__WEBSERVER__AUTO_REFRESH_INTERVAL: 0
+    # Configurações para evitar conflitos com proxy e recarregamentos
+    AIRFLOW__WEBSERVER__UPDATE_FAB_PERMS: False
+    AIRFLOW__WEBSERVER__RELOAD_ON_PLUGIN_CHANGE: False
+    AIRFLOW__WEBSERVER__WORKERS: 1
+    AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL: 0
+    AIRFLOW__WEBSERVER__WORKER_REFRESH_BATCH_SIZE: 0
     
     # Configurações de autenticação para Airflow 3
     AIRFLOW__WEBSERVER__ENABLE_WTF_CSRF: False
+    AIRFLOW__WEBSERVER__WTF_CSRF_ENABLED: False
+    AIRFLOW__WEBSERVER__WTF_CSRF_TIME_LIMIT: 0
     AIRFLOW__WEBSERVER__SECRET_KEY: lakehouse-finance3-webserver-secret-key-2024-fixed
 
     # Fuso horário

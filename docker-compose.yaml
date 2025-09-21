@@ -7,8 +7,8 @@ x-airflow-common: &airflow-common
   environment: &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
     # Configurações específicas do Airflow 3 (documentação oficial)
-    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow3-api-server:8080
-    AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION: true
+    # AIRFLOW__CORE__EXECUTION_API_SERVER_URL - Desabilitado para compatibilidade
+    # AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION: false - Desabilitado para compatibilidade
     AIRFLOW__CORE__INTERNAL_API_SECRET_KEY: lakehouse-finance3-internal-api-key-2024
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres3:5432/airflow
     AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres3:5432/airflow
@@ -194,7 +194,7 @@ services:
       airflow3-init:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/ >/dev/null"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/api/v2/monitor/health >/dev/null"]
       interval: 10s
       timeout: 10s
       retries: 30

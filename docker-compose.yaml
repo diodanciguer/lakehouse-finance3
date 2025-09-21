@@ -38,7 +38,10 @@ x-airflow-common: &airflow-common
 #    AIRFLOW__EXECUTION_API__JWT_ISSUER: airflow.apache.org
 
     # Configurações adicionais do Execution API para resolver JWT auth
-    AIRFLOW__TASK_EXECUTION__ENDPOINT_URL: http://airflow3-api-server:8080/execution
+    # Modo compatível Airflow 2 - Acesso direto ao DB
+    AIRFLOW__CORE__SQL_ALCHEMY_CONN: ${DATABASE_URL}
+    AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+    # AIRFLOW__TASK_EXECUTION__ENDPOINT_URL: http://airflow3-api-server:8080/execution  # Desabilitado
     # AIRFLOW__TASK_EXECUTION__AUTH_TYPE: jwt # Desabilitado - problema com Airflow 3.0.6
     AIRFLOW__API_FASTAPI__CSRF_PROTECT: false
     

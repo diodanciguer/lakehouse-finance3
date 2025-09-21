@@ -32,10 +32,10 @@ x-airflow-common: &airflow-common
     AIRFLOW_SECRET_KEY: lakehouse-finance3-airflow3-secret-key-2024-fixed
     
     # JWT secrets para comunicação entre componentes (Airflow 3)
-    AIRFLOW__API_FASTAPI__JWT_SECRET_KEY: lakehouse-finance3-jwt-secret-key-2024-fixed
-    AIRFLOW__API_FASTAPI__JWT_ALGORITHM: HS512
-    AIRFLOW__API_FASTAPI__JWT_AUDIENCE: urn:airflow.apache.org:task
-    AIRFLOW__API_FASTAPI__JWT_ISSUER: airflow.apache.org
+    AIRFLOW__EXECUTION_API__JWT_SECRET: lakehouse-finance3-jwt-secret-key-2024-fixed
+    AIRFLOW__EXECUTION_API__JWT_ALGORITHM: HS512
+    AIRFLOW__EXECUTION_API__JWT_AUDIENCE: urn:airflow.apache.org:task
+    AIRFLOW__EXECUTION_API__JWT_ISSUER: airflow.apache.org
 
     # Configurações adicionais do Execution API para resolver JWT auth
     AIRFLOW__TASK_EXECUTION__ENDPOINT_URL: http://airflow3-api-server:8080/execution
